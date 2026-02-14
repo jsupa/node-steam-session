@@ -26,3 +26,15 @@ export {
 	LoginApprover,
 	LoginSession
 };
+
+export type {
+	CustomRequestFunction,
+	CustomRequestOptions,
+	CustomRequestResponse,
+	ConstructorOptions,
+	StartLoginSessionWithCredentialsDetails,
+	StartSessionResponse,
+	StartSessionResponseValidAction,
+	AuthSessionInfo,
+	ApproveAuthSessionRequest
+} from './interfaces-external';

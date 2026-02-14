@@ -9,6 +9,7 @@ import {TypedEmitter} from 'tiny-typed-emitter';
 
 import AuthenticationClient from './AuthenticationClient';
 import {API_HEADERS, decodeJwt, eresultError, defaultUserAgent} from './helpers';
+import HttpClientAdapter from './HttpClientAdapter';
 
 import WebApiTransport from './transports/WebApiTransport';
 import WebSocketCMTransport from './transports/WebSocketCMTransport';
@@ -111,6 +112,14 @@ export default class LoginSession extends TypedEmitter<LoginSessionEvents> {
 			throw new Error('Cannot specify more than one of localAddress, httpProxy, socksProxy, or agent at the same time');
 		}
 
+		// Check if customRequestFunction is used with mutually exclusive options
+		if (options.customRequestFunction) {
+			let conflictingOptions = Object.keys(options).filter(k => mutuallyExclusiveOptions.includes(k));
+			if (conflictingOptions.length > 0) {
+				throw new Error(`Cannot use customRequestFunction with ${conflictingOptions.join(', ')}. Your custom request function should handle proxy/agent configuration.`);
+			}
+		}
+
 		let agent:HTTPS.Agent = options.agent || new HTTPS.Agent({keepAlive: true});
 
 		if (options.httpProxy) {
@@ -119,10 +128,15 @@ export default class LoginSession extends TypedEmitter<LoginSessionEvents> {
 			agent = new SocksProxyAgent(options.socksProxy);
 		}
 
-		this._webClient = new HttpClient({
-			httpsAgent: agent,
-			localAddress: options.localAddress
-		});
+		// Use custom request function if provided, otherwise use standard HttpClient
+		if (options.customRequestFunction) {
+			this._webClient = new HttpClientAdapter(options.customRequestFunction) as any;
+		} else {
+			this._webClient = new HttpClient({
+				httpsAgent: agent,
+				localAddress: options.localAddress
+			});
+		}
 
 		this._platformType = platformType;
 

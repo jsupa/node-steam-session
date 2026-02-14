@@ -14,6 +14,67 @@ import EAuthTokenPlatformType from './enums-steam/EAuthTokenPlatformType';
 import EAuthSessionSecurityHistory from './enums-steam/EAuthSessionSecurityHistory';
 import ITransport from './transports/ITransport';
 
+/**
+ * Options for a custom HTTP request function that can be used instead of the default HttpClient.
+ */
+export interface CustomRequestOptions {
+	/**
+	 * HTTP method (GET or POST)
+	 */
+	method: 'GET' | 'POST';
+
+	/**
+	 * Full URL to request
+	 */
+	url: string;
+
+	/**
+	 * Optional HTTP headers
+	 */
+	headers?: Record<string, string>;
+
+	/**
+	 * Optional query parameters to append to the URL
+	 */
+	queryParams?: Record<string, any>;
+
+	/**
+	 * Optional request body (already encoded, e.g. as multipart/form-data for POST requests).
+	 * Can be a string or Buffer.
+	 */
+	body?: string | Buffer;
+}
+
+/**
+ * Response from a custom HTTP request function.
+ */
+export interface CustomRequestResponse {
+	/**
+	 * HTTP status code
+	 */
+	statusCode: number;
+
+	/**
+	 * HTTP response headers. Header names should be lowercase.
+	 */
+	headers: Record<string, string | string[]>;
+
+	/**
+	 * Response body as a string or Buffer
+	 */
+	body: string | Buffer;
+
+	/**
+	 * Final URL after any redirects
+	 */
+	finalUrl: string;
+}
+
+/**
+ * A function that performs an HTTP request with the given options and returns a response.
+ */
+export type CustomRequestFunction = (options: CustomRequestOptions) => Promise<CustomRequestResponse>;
+
 export interface ConstructorOptions {
 	/**
 	 * An `ITransport` instance, if you need to specify a custom transport. If omitted, defaults to a
@@ -70,6 +131,68 @@ export interface ConstructorOptions {
 	 * a random machine name in the format DESKTOP-ABCDEFG will be generated automatically.
 	 */
 	machineFriendlyName?: string;
+
+	/**
+	 * A custom function to use for all HTTP requests instead of the default HttpClient from @doctormckay/stdlib.
+	 * This allows you to use your own HTTP library (e.g., got, axios, node-fetch, request).
+	 *
+	 * Your function should accept {@link CustomRequestOptions} and return a Promise that resolves to {@link CustomRequestResponse}.
+	 *
+	 * When this option is provided, {@link ConstructorOptions.agent}, {@link ConstructorOptions.httpProxy},
+	 * {@link ConstructorOptions.socksProxy}, and {@link ConstructorOptions.localAddress} options will be ignored,
+	 * and an error will be thrown if you try to use them together. Your custom function is responsible for handling
+	 * any proxy, agent, or network configuration.
+	 *
+	 * **Example with `got`:**
+	 * ```js
+	 * import got from 'got';
+	 * import {LoginSession, EAuthTokenPlatformType} from 'steam-session';
+	 *
+	 * let session = new LoginSession(EAuthTokenPlatformType.WebBrowser, {
+	 *   customRequestFunction: async (options) => {
+	 *     const response = await got(options.url, {
+	 *       method: options.method,
+	 *       headers: options.headers,
+	 *       searchParams: options.queryParams,
+	 *       body: options.body,
+	 *       followRedirect: true
+	 *     });
+	 *     return {
+	 *       statusCode: response.statusCode,
+	 *       headers: response.headers,
+	 *       body: response.body,
+	 *       finalUrl: response.url
+	 *     };
+	 *   }
+	 * });
+	 * ```
+	 *
+	 * **Example with `axios`:**
+	 * ```js
+	 * import axios from 'axios';
+	 * import {LoginSession, EAuthTokenPlatformType} from 'steam-session';
+	 *
+	 * let session = new LoginSession(EAuthTokenPlatformType.WebBrowser, {
+	 *   customRequestFunction: async (options) => {
+	 *     const response = await axios({
+	 *       method: options.method,
+	 *       url: options.url,
+	 *       headers: options.headers,
+	 *       params: options.queryParams,
+	 *       data: options.body,
+	 *       maxRedirects: 5
+	 *     });
+	 *     return {
+	 *       statusCode: response.status,
+	 *       headers: response.headers,
+	 *       body: response.data,
+	 *       finalUrl: response.request.res.responseUrl
+	 *     };
+	 *   }
+	 * });
+	 * ```
+	 */
+	customRequestFunction?: CustomRequestFunction;
 }
 
 export interface StartLoginSessionWithCredentialsDetails {
